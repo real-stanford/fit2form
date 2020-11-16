@@ -1,0 +1,53 @@
+{
+    "evaluations":
+    [
+        {
+            "evaluate": true,
+            "type": "trained_gn",
+            "checkpoint_dict": {
+                "gn_checkpoint_path": "downloads/checkpoints/fit2form.pth",
+                "fn_checkpoint_path": "downloads/checkpoints/fit2form.pth"
+            },
+            "desc": "fit2form",
+            "finetune_steps": 0,
+            "lr": 0,
+            "train_config_path": "configs/default.json"
+        },
+        {
+            "evaluate": false,
+            "type": "trained_gn",
+            "checkpoint_dict": {
+                "gn_checkpoint_path": "downloads/checkpoints/fit2form_gs.pth",
+                "fn_checkpoint_path": "downloads/checkpoints/fit2form_gs.pth"
+            },
+            "desc": "fit2form",
+            "finetune_steps": 0,
+            "lr": 0,
+            "train_config_path": "configs/default.json"
+        },
+        {
+            "evaluate": false,
+            "type": "trained_gn",
+            "checkpoint_dict": {
+                "gn_checkpoint_path": "downloads/checkpoints/fit2form_gs_robustness.pth",
+                "fn_checkpoint_path": "downloads/checkpoints/fit2form_gs_robustness.pth"
+            },
+            "desc": "fit2form",
+            "finetune_steps": 0,
+            "lr": 0,
+            "train_config_path": "configs/default.json"
+        },
+        {
+            "evaluate": false,
+            "type": "trained_gn",
+            "checkpoint_dict": {
+                "gn_checkpoint_path": "downloads/checkpoints/fit2form_gs_stability.pth",
+                "fn_checkpoint_path": "downloads/checkpoints/fit2form_gs_stability.pth"
+            },
+            "desc": "fit2form",
+            "finetune_steps": 0,
+            "lr": 0,
+            "train_config_path": "configs/default.json"
+        }
+    ]
+}

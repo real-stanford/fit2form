@@ -1,0 +1,98 @@
+{
+    "training": {
+        "hyperparameters": {
+            "designer_lr": 1e-4,
+            "designer_weight_decay": 1e-5,
+            "cotrain_batch_size": 32,
+            "cotrain_new_fingers_per_epoch_count": 512,
+            "cotrain_epochs": 500,
+            "cotrain_warmup_datapoints": 2048,
+            "cotrain_fn_max_epochs": 50,
+            "cotrain_fn_min_epochs": 5,
+            "cotrain_target_fn_loss": 0.2,
+            "cotrain_gn_max_epochs": 50,
+            "cotrain_gn_min_epochs": 5,
+            "cotrain_target_gn_loss": -0.95,
+            "cotrain_optimize_gn_grasp_object": true,
+            "cotrain_gn_max_opt_steps_per_epoch": 500,
+            "vae_lr": 1e-4,
+            "vae_weight_decay": 1e-5,
+            "vae_batch_size": 128,
+            "vae_num_epochs": 100,
+            "embedding_dim": 686,
+            "pretrain_batch_size": 64,
+            "pretrain_num_epochs": 100,
+            "balanced_sampling": false,
+            "fitness_class": "SpatialConcatResFitnessNet",
+            "generator_class": "DeepThinGenerator",
+            "use_latest_points": false,
+            "optimize_objectives": [
+                "success",
+                "stability",
+                "robustness"
+            ]
+        }
+    },
+    "environment": {
+        "grasp": {
+            "max_grasp_force": 1.0,
+            "max_grasp_speed": 0.03
+        },
+        "grasp_metrics": [
+            "success",
+            "stability",
+            "robustness"
+        ],
+        "contact_normals": false,
+        "average_robustness": false,
+        "robustness_angles": [
+            -30,
+            -20,
+            -10,
+            10,
+            20,
+            30
+        ],
+        "stability": {
+            "steps_to_apply_force": 20,
+            "force_magnitude": 1.5,
+            "force_directions": [
+                [
+                    0.0,
+                    0.0,
+                    -1.0
+                ],
+                [
+                    0.0,
+                    0.70710678,
+                    -0.70710678
+                ],
+                [
+                    0.61237244,
+                    -0.35355339,
+                    -0.70710678
+                ],
+                [
+                    -0.61237244,
+                    -0.35355339,
+                    -0.70710678
+                ]
+            ]
+        },
+        "view_bounds": [
+            [
+                -0.3,
+                0.3
+            ],
+            [
+                -0.3,
+                0.3
+            ],
+            [
+                0.00,
+                0.60
+            ]
+        ],
+        "tsdf_voxel_size": 0.015
+    }
+}
