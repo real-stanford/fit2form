@@ -26,6 +26,7 @@ conda activate fit2form
 In the repo's root, download the pretrained weights and processed test dataset:
 ```sh
 wget -qO- https://fit2form.cs.columbia.edu/downloads/checkpoints/loss-ablation-checkpoints.tar.xz | tar xvfJ -
+mkdir -p downloads/checkpoints; mv *.pth downloads/checkpoints/
 wget -qO- https://fit2form.cs.columbia.edu/downloads/data/test.tar.xz | tar xvfJ -
 ```
 
