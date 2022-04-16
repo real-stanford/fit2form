@@ -146,7 +146,12 @@ def update_grasp_dataset(
     grasp_dataset.extend(grasp_data, log=False)
 
 
-def generate_pretrain_imprint_data(envs, grasp_object_dataset, grasp_dataset):
+def generate_pretrain_imprint_data(
+    envs,
+    grasp_object_dataset,
+    grasp_dataset,
+    voxel_size=None,
+):
     env_pool = Pool(envs)
     output_dir = f"{grasp_dataset.directory_path}grippers_imprint/"
     if not exists(output_dir):

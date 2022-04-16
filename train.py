@@ -633,7 +633,7 @@ def pretrain(
         print("=" * 25 + f"EPOCH {epoch}" + "=" * 25)
         # 1. Train
         net.train()
-        mean_fitness_loss, _ = \
+        mean_fitness_loss, _, _, _, _, _ = \
             optimize_network(
                 data_loader=get_train_loader(per_gpu_batch_size),
                 net=net,
@@ -643,7 +643,7 @@ def pretrain(
                 optimize_fitness_net=True,
                 optimize_generator_net=False,
                 get_generator_loss=False)
-        mean_fitness_loss = mean_fitness_loss.cpu().item() / num_gpus
+        mean_fitness_loss /= num_gpus
         logger.log(
             data={
                 'Train/Fitness_Loss': mean_fitness_loss,
@@ -653,7 +653,7 @@ def pretrain(
         # 2. Validate
         with no_grad():
             net.eval()
-            mean_fitness_loss, _ = \
+            mean_fitness_loss, _, _, _, _, _ = \
                 optimize_network(
                     data_loader=get_val_loader(per_gpu_batch_size),
                     net=net,
@@ -665,7 +665,7 @@ def pretrain(
                     optimize_generator_net=False,
                     get_generator_loss=False,
                 )
-        mean_fitness_loss = mean_fitness_loss.cpu().item() / num_gpus
+        mean_fitness_loss /= num_gpus
         print("Average validation | F: {:.04f} ".format(mean_fitness_loss))
         logger.log(
             data={

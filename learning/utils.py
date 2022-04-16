@@ -83,16 +83,10 @@ class ObjectDataset(Dataset):
         prefix = splitext(grasp_object_urdf_path)[0]
         # make sure obj, collision mesh, and tsdf is there
         if not exists(prefix + '.obj'):
-            remove(grasp_object_urdf_path)
             return False
         elif not exists(prefix + '_collision.obj'):
-            remove(grasp_object_urdf_path)
-            remove(prefix + '.obj')
             return False
         elif not exists(prefix + '_tsdf.npy'):
-            remove(grasp_object_urdf_path)
-            remove(prefix + '.obj')
-            remove(prefix + '_collision.obj')
             return False
         elif check_imprint and (not exists(prefix + '_imprint.urdf')
                                 or not exists(prefix + '_imprint_left_tsdf.npy')
@@ -156,7 +150,7 @@ class ImprintObjectDataset(ObjectDataset):
                  batch_size: int,
                  check_validity=False):
         super(ImprintObjectDataset, self).__init__(
-            directory_path, batch_size, check_validity)
+            directory_path, batch_size, check_validity=check_validity)
         total_count = len(self.object_paths)
         if check_validity:
             with Pool(16) as p:
