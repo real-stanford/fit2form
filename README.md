@@ -38,10 +38,11 @@ python evaluate_generator.py --evaluate_config configs/evaluate.json --objects t
 ## Train a fit2form finger generator
 For training a fit2form finger generator, you will need to do the following:
 1. Generate dataset
-2. Pretrain an AutoEncoder
-3. Pretrain the Generator Network 
-4. Pretrain the Fitness Network
-5. Cotrain Generator and Fitness Network
+2. Download train-val-test split files
+3. Pretrain an AutoEncoder
+4. Pretrain the Generator Network 
+5. Pretrain the Fitness Network
+6. Cotrain Generator and Fitness Network
 
 ### Generating Datsets
 1. Download the [ShapeNetCore dataset](https://www.shapenet.org) and place it in the `data/ShapeNetCore.v2` folder at root. Your data folder should have shapenet category directories like:
@@ -55,6 +56,8 @@ data/
 ```
 2. Generate grasp objects (each object in Shapenet will be dropped from a height, allowed to settle, and then readjusted to our geometry bounds). The generated objects will be stored in the same directory as the original object.
 ```sh
+python main.py --mode collision_mesh
+python main.py --mode urdf
 python main.py --mode grasp_objects
 ```
 3. Generate the shapenet-grasp-dataset:
@@ -64,6 +67,13 @@ python main.py --name "data/shapenet_grasp_datsaet/" --mode pretrain_dataset
 4. Generate the imprint-grasp-dataset:
 ```sh
 python main.py --name "data/imprint_grasp_datsaet/" --mode pretrain_imprint_dataset 
+```
+
+### Download train-val-test split files
+```sh
+wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/train_categories.txt
+wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/val_categories.txt
+wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/test_categories.txt
 ```
 
 ### Pretrain autoencoder
