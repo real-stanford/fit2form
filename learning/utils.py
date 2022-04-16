@@ -194,18 +194,6 @@ class ImprintObjectDataset(ObjectDataset):
         return grasp_object_urdf_path
 
 
-def correct_path(path):
-    # temporary util function to correct relative path
-    # in dataset
-    if 'ShapeNetCore.v2/' in path:
-        path = path.split('ShapeNetCore.v2/')[1]
-    elif 'shapenet/' in path:
-        path = path.split('shapenet/')[1]
-    elif 'data/' in path:
-        path = path.split('data/')[1]
-    return '/local/crv/sa3762/data/ShapeNetCore.v2/' + path
-
-
 def get_loader(dataset: Dataset,
                batch_size: int = 32,
                collate_fn=None,
@@ -344,7 +332,6 @@ class GraspDataset(Dataset):
             grasp_metrics = group['grasp_result']
             grasp_object_tsdf_path = str(
                 grasp_metrics.attrs['grasp_object_tsdf_path'])
-            grasp_object_tsdf_path = correct_path(grasp_object_tsdf_path)
             if splitext(grasp_object_tsdf_path)[1] == '.urdf':
                 grasp_object_tsdf_path = splitext(grasp_object_tsdf_path)[
                     0] + '_tsdf.npy'
@@ -360,9 +347,9 @@ class GraspDataset(Dataset):
                 right_finger_tsdf_path = str(
                     array(group['right_finger_tsdf_path']))
                 left_finger_tsdf = tensor(
-                    load(correct_path(left_finger_tsdf_path)))
+                    load(left_finger_tsdf_path))
                 right_finger_tsdf = tensor(
-                    load(correct_path(right_finger_tsdf_path)))
+                    load(right_finger_tsdf_path))
 
             left_finger_tsdf = left_finger_tsdf.squeeze().unsqueeze(dim=0)
             right_finger_tsdf = right_finger_tsdf.squeeze().unsqueeze(dim=0)
