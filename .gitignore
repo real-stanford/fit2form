@@ -138,7 +138,6 @@ dmypy.json
 .pyre/
 checkpoints/
 evaluation_results/
-evaluation_results_test/
 test/
 data/
 runs/
