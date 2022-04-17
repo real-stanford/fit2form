@@ -577,7 +577,6 @@ class VAEDatasetHDF(Dataset):
             else "right_finger_tsdf_path"
         with h5py.File(self.dataset_path, 'r') as f:
             group = f.get(self.keys[hdf_index])
-            assert finger_tsdf_key in group or finger_tsdf_path_key in group
             if finger_tsdf_key in group:
                 finger_tsdf = tensor(
                     array(group[finger_tsdf_key])).squeeze().unsqueeze(dim=0).float()
