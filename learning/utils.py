@@ -535,24 +535,6 @@ def grasp_dataset_concat_collate_fn(batch):
         right_finger_tsdfs, grasp_metrics, grasp_dataset_types
 
 
-class VAEDataset(Dataset):
-    def __init__(self, finger_tsdf_paths, batch_size):
-        self.batch_size = batch_size
-        self.finger_tsdf_paths = finger_tsdf_paths
-
-    def __len__(self):
-        return len(self.finger_tsdf_paths)
-
-    def __getitem__(self, idx):
-        return tensor(load(self.finger_tsdf_paths[idx])).unsqueeze(dim=0).float()
-
-    def get_loader(self):
-        return DataLoader(self,
-                          batch_size=self.batch_size,
-                          num_workers=6,
-                          shuffle=True)
-
-
 class VAEDatasetHDF(Dataset):
     """
     VAE dataset using a graspdataset.hdf file

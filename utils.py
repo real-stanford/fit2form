@@ -17,7 +17,6 @@ from learning import (
     ConcatGraspDataset,
     BalancedGraspDataset,
     GripperDesigner,
-    VAEDataset,
     get_loader,
     grasp_dataset_concat_collate_fn,
     VAEDatasetHDF,
@@ -282,7 +281,6 @@ def setup_pretrain_dataset_generation(
         config['environment']['tsdf_voxel_size'],
         args.num_pretrain_dataset,
     )
-    # hdf5 output path: Ummm... what to use here?
 
 def setup_imprint_generation(args, config):
     if args.objects is None:

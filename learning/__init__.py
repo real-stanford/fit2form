@@ -4,7 +4,6 @@ from .utils import (
     GraspDataset,
     ConcatGraspDataset,
     BalancedGraspDataset,
-    VAEDataset,
     grasp_dataset_concat_collate_fn,
     get_loader,
     get_combined_loader,
@@ -21,7 +20,6 @@ __all__ = [
     'GraspDataset',
     'BalancedGraspDataset'
     'ConcatGraspDataset',
-    'VAEDataset',
     'GripperDesigner',
     'grasp_dataset_concat_collate_fn',
     'get_combined_loader',
