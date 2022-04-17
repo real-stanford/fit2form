@@ -44,7 +44,7 @@ For training a fit2form finger generator, you will need to do the following:
 5. Pretrain the Fitness Network
 6. Cotrain Generator and Fitness Network
 
-### Generating Datsets
+### 1. Generating Datsets
 1. Download the [ShapeNetCore dataset](https://www.shapenet.org) and place it in the `data/ShapeNetCore.v2` folder at root. Your data folder should have shapenet category directories like:
 ```sh
 data/
@@ -56,48 +56,80 @@ data/
 ```
 2. Generate grasp objects (each object in Shapenet will be dropped from a height, allowed to settle, and then readjusted to our geometry bounds). The generated objects will be stored in the same directory as the original object.
 ```sh
+# - generate collision meshes
 python main.py --mode collision_mesh
+# - wrap those collision meshes inside urdf files for simulation
 python main.py --mode urdf
+# - process objects (rescale to bounds) after dropping them from a random orientation
 python main.py --mode grasp_objects
 ```
 3. Generate the shapenet-grasp-dataset:
 ```sh
-python main.py --name "data/shapenet_grasp_datsaet/" --mode pretrain_dataset 
+python main.py --name "data/shapenet_grasp_dataset/" --mode pretrain_dataset 
 ```
 4. Generate the imprint-grasp-dataset:
 ```sh
-python main.py --name "data/imprint_grasp_datsaet/" --mode pretrain_imprint_dataset 
+# - generate imprint fingers
+python main.py --mode imprint_baseline
+# - simulate grasping using (obj, imprint-left, imprint-right) and store grasping results
+python main.py --name "data/imprint_grasp_dataset/" --mode pretrain_imprint_dataset 
 ```
 
-### Download train-val-test split files
+### 2. Download train-val-test split files
 ```sh
 wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/train_categories.txt
 wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/val_categories.txt
 wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/test_categories.txt
 ```
 
-### Pretrain autoencoder
+### 3. Pretrain autoencoder
 ```sh
-python main.py --name train_ae --mode vae --train data/train_categories.txt --val data/val_categories.txt --shapenet_train_hdf data/ShapeNetCore.v2/shapenet_grasp_results_train.hdf5 --shapenet_val_hdf data/ShapeNetCore.v2/shapenet_grasp_results_val.hdf5
+python main.py\
+    --name train_ae\
+    --mode vae\
+    --shapenet_train_hdf data/shapenet_grasp_dataset/grasp_results_train.hdf5\
+    --shapenet_val_hdf data/shapenet_grasp_dataset/grasp_results_val.hdf5\
+    --imprint_train_hdf data/imprint_grasp_dataset/grasp_results_train.hdf5\
+    --imprint_val_hdf data/imprint_grasp_dataset/grasp_results_val.hdf5
 ```
 
-### Pretrain generator network
+### 4. Pretrain generator network
+Replace `<epoch_num>` in the command below:
 ```sh
-python main.py --name pretrain_gn --mode pretrain_gn --ae_checkpoint_path train_vae/vae_<epoch_num>.pth
+python main.py\
+    --name pretrain_gn\
+    --mode pretrain_gn\
+    --ae_checkpoint_path runs/train_ae/vae_<epoch_num>.pth\
+    --shapenet_train_hdf data/shapenet_grasp_dataset/grasp_results_train.hdf5\
+    --shapenet_val_hdf data/shapenet_grasp_dataset/grasp_results_val.hdf5\
+    --imprint_train_hdf data/imprint_grasp_dataset/grasp_results_train.hdf5\
+    --imprint_val_hdf data/imprint_grasp_dataset/grasp_results_val.hdf5
 ```
 
-### Pretrain fitness network
+### 5. Pretrain fitness network
 ```sh
-python main.py --name pretrain_fn --mode pretrain
+python main.py\
+    --name pretrain_fn\
+    --mode pretrain\
+    --shapenet_train_hdf data/shapenet_grasp_dataset/grasp_results_train.hdf5\
+    --shapenet_val_hdf data/shapenet_grasp_dataset/grasp_results_val.hdf5\
+    --imprint_train_hdf data/imprint_grasp_dataset/grasp_results_train.hdf5\
+    --imprint_val_hdf data/imprint_grasp_dataset/grasp_results_val.hdf5
 ```
 
-### Cotraining generator and fitness network 
-```sh
-python main.py --name cotrain --mode cotrain --gn_checkpoint_path runs/pretrain_gn/imprint_pretrain_gn_<epoch_num>.pth --fn_checkpoint_path runs/pretrain_fn/pretrain_<epoch_num>.pth
-```
 
+### 6. Cotraining generator and fitness network 
+Replace `<epoch_num>`s in the command below:
 ```sh
-python main.py --name cotrain --mode cotrain --gn_checkpoint_path runs/pretrain_gn/imprint_pretrain_gn_<epoch_num>.pth --fn_checkpoint_path runs/pretrain_fn/pretrain_<epoch_num>.pth
+python main.py\
+    --name cotrain\
+    --mode cotrain\
+    --gn_checkpoint_path runs/pretrain_gn/imprint_pretrain_gn_<epoch_num>.pth\
+    --fn_checkpoint_path runs/pretrain_fn/pretrain_<epoch_num>.pth\
+    --shapenet_train_hdf data/shapenet_grasp_dataset/grasp_results_train.hdf5\
+    --shapenet_val_hdf data/shapenet_grasp_dataset/grasp_results_val.hdf5\
+    --imprint_train_hdf data/imprint_grasp_dataset/grasp_results_train.hdf5\
+    --imprint_val_hdf data/imprint_grasp_dataset/grasp_results_val.hdf5
 ```
 
 ## Citation

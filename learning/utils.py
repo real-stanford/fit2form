@@ -1,3 +1,5 @@
+import os
+import ray
 from torch.utils.data import Dataset, DataLoader, Subset, ConcatDataset
 from torch.utils.data.distributed import DistributedSampler
 from os.path import exists, splitext, getsize
@@ -11,7 +13,9 @@ from torch.nn import Module
 from random import shuffle
 from pathlib import Path
 from enum import IntEnum
+from glob import glob
 
+from common_utils import tqdm_remote_get, glob_category
 
 
 class Flatten(Module):
@@ -27,42 +31,32 @@ class ObjectDataset(Dataset):
     def __init__(self,
                  directory_path: str,
                  batch_size: int,
-                 grasp_object_file='graspobject_train.txt',
+                 category_file: str = None,
                  check_validity=True):
-        if exists(directory_path + grasp_object_file):
+        if category_file is not None and exists(category_file):
             print('[ObjectDataset] loading grasp objects from ',
-                  directory_path, grasp_object_file)
-            with open(directory_path + grasp_object_file, 'r') as f:
-                self.object_paths = [directory_path + file_path.rstrip()
-                                     for file_path in f.readlines()]
-            self.tsdf_dataset_path = directory_path + \
-                splitext(grasp_object_file)[0] + '.hdf5'
-            if exists(self.tsdf_dataset_path):
-                print("[ObjectDataset] Loading TSDF from ",
-                      self.tsdf_dataset_path)
-                self.load_tsdf_from_hsdf = True
-            else:
-                self.tsdf_dataset_path = None
-                self.load_tsdf_from_hsdf = False
+                  directory_path, category_file)
+            self.object_paths = glob_category(
+                directory_path, category_file, "**/*graspobject.urdf")
         else:
             print('[ObjectDataset] globbing grasp objects ...')
             self.object_paths = [str(p)
                                  for p in Path(directory_path).rglob("*graspobject.urdf")]
-            self.load_tsdf_from_hsdf = False
         self.directory_path = directory_path
         total_count = len(self.object_paths)
         print(f'[ObjectDataset] found {total_count} objects')
         if check_validity:
-            with Pool(max(1, cpu_count() - 2)) as p:
-                self.object_paths = [
-                    path for path in tqdm(
-                        p.imap(
-                            ObjectDataset.validity_filter,
-                            self.object_paths),
-                        desc='checking grasp objects...',
-                        total=len(self.object_paths),
-                        dynamic_ncols=True)
-                    if path is not None]
+            async_validity_filter = ray.remote(ObjectDataset.validity_filter)
+            self.object_paths = [
+                path for path in tqdm_remote_get(
+                    task_handles=[
+                        async_validity_filter.remote(object_path)
+                        for object_path in self.object_paths
+                    ],
+                    desc="checking grasp objects ..."
+                )
+                if path is not None
+            ]
             valid_count = len(self.object_paths)
             print('[ObjectDataset] found {} bad objects'.format(
                 total_count - valid_count))
@@ -107,16 +101,9 @@ class ObjectDataset(Dataset):
         urdf_path = self.object_paths[index]
         if self.get_urdf_path_only:
             return str(urdf_path)
-        if self.load_tsdf_from_hsdf:
-            prefix = splitext(urdf_path)[0].split('ShapeNetCore.v2/')[1]
-            with h5py.File(self.tsdf_dataset_path, 'r') as f:
-                tsdf_path = f"data/{prefix}.urdf"
-                tsdf = tensor(f[tsdf_path]['tsdf']).unsqueeze(dim=0)
-            tsdf_path = prefix + '_tsdf.npy'
-        else:
-            prefix = splitext(urdf_path)[0]
-            tsdf_path = prefix + '_tsdf.npy'
-            tsdf = tensor(load(tsdf_path)).unsqueeze(dim=0)
+        prefix = splitext(urdf_path)[0]
+        tsdf_path = prefix + '_tsdf.npy'
+        tsdf = tensor(load(tsdf_path)).unsqueeze(dim=0)
         return {
             'tsdf': tsdf,
             'visual_mesh_path': prefix + '.obj',
@@ -148,20 +135,23 @@ class ImprintObjectDataset(ObjectDataset):
     def __init__(self,
                  directory_path: str,
                  batch_size: int,
-                 check_validity=False):
+                 category_file: str,
+                 check_validity=True):
         super(ImprintObjectDataset, self).__init__(
-            directory_path, batch_size, check_validity=check_validity)
+            directory_path, batch_size, category_file, check_validity=check_validity)
         total_count = len(self.object_paths)
         if check_validity:
-            with Pool(16) as p:
-                self.object_paths = [
-                    path for path in tqdm(
-                        p.imap(
-                            ImprintObjectDataset.validity_filter,
-                            self.object_paths),
-                        desc='checking grasp objects for the presence of imprint fingers...',
-                        total=len(self.object_paths))
-                    if path is not None]
+            async_validity_filter = ray.remote(ImprintObjectDataset.validity_filter)
+            self.object_paths = [
+                path for path in tqdm_remote_get(
+                    task_handles=[
+                        async_validity_filter.remote(object_path)
+                        for object_path in self.object_paths
+                    ],
+                    desc="checking grasp objects for presence of imprint fingers ..."
+                )
+                if path is not None
+            ]
             valid_count = len(self.object_paths)
             print('[ImprintObjectDataset] found {} bad objects'.format(
                 total_count - valid_count))
@@ -227,7 +217,9 @@ class GraspDataset(Dataset):
                                       'robustness'],
                  use_latest_points=None,
                  use_1_robustness=False,
-                 grasp_dataset_type: GraspDatasetType = GraspDatasetType.PRETRAIN):
+                 grasp_dataset_type: GraspDatasetType = GraspDatasetType.PRETRAIN,
+                 suffix: str = None,
+                ):
         self.optimize_objectives = optimize_objectives
         self.use_1_robustness = use_1_robustness
         self.grasp_dataset_type = tensor(grasp_dataset_type).float()  # flag to identify the type of a particular datapoint
@@ -235,7 +227,9 @@ class GraspDataset(Dataset):
             self.optimize_objectives, self.use_1_robustness)
         self.directory_path = directory_path
         if directory_path is not None:
-            self.hdf5_output_path = directory_path + '/grasp_results.hdf5'
+            self.hdf5_output_path = directory_path + (
+                '/grasp_results.hdf5'
+                if suffix is None else f'/grasp_results_{suffix}.hdf5')
             self.directory_path = directory_path
         elif dataset_path is not None:
             self.hdf5_output_path = dataset_path
@@ -390,7 +384,7 @@ class GraspDataset(Dataset):
             success_indices = self.success_indices
             failure_indices = self.failure_indices
         return success_indices, failure_indices
-        
+
     def get_average_success_rate(self):
         success_indices, failure_indices = self.get_indices_distribution()
         if len(success_indices) + len(failure_indices) == 0:
@@ -580,11 +574,19 @@ class VAEDatasetHDF(Dataset):
         hdf_index = idx // 2
         finger_tsdf_key = "left_finger_tsdf" if idx % 2 == 0 \
             else "right_finger_tsdf"
+        finger_tsdf_path_key = "left_finger_tsdf_path" if idx % 2 == 0 \
+            else "right_finger_tsdf_path"
         with h5py.File(self.dataset_path, 'r') as f:
             group = f.get(self.keys[hdf_index])
-            assert finger_tsdf_key in group
-            finger_tsdf = tensor(
-                group[finger_tsdf_key]).squeeze().unsqueeze(dim=0).float()
+            assert finger_tsdf_key in group or finger_tsdf_path_key in group
+            if finger_tsdf_key in group:
+                finger_tsdf = tensor(
+                    array(group[finger_tsdf_key])).squeeze().unsqueeze(dim=0).float()
+            elif finger_tsdf_path_key in group:
+                finger_tsdf_path = str(array(group[finger_tsdf_path_key]))
+                finger_tsdf = tensor(load(finger_tsdf_path)).unsqueeze(dim=0).float()
+            else:
+                assert False, f"Neither {finger_tsdf_key}, nor {finger_tsdf_path_key} found in {self.dataset_path}[{idx}]"
             return finger_tsdf
 
 

@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 from copy import deepcopy
-import ray
 from json import load, dump
 from os.path import dirname, basename, exists, splitext, isdir
 from os import makedirs
@@ -24,7 +23,7 @@ from learning import (
     VAEDatasetHDF,
     GraspDatasetType, 
 )
-from tqdm import tqdm
+from common_utils import tqdm_remote_get, glob_category
 from torch.cuda import is_available as is_cuda_available
 from torch.utils.data import ConcatDataset, DataLoader
 from git import Repo
@@ -36,7 +35,6 @@ import numpy as np
 import random
 import torch
 import pickle
-from glob import glob
 
 
 def seed_all(seed=0):
@@ -85,8 +83,15 @@ def parse_args():
                         help="path to test.txt file",
                         default=None
     )
+    parser.add_argument('--split',
+                        help='choose which dataset split to use',
+                        choices=['train', 'val'],
+                        default=None
+                        )
     parser.add_argument("--shapenet_train_hdf", help="path to processed shapenet train hdf file", default=None)
     parser.add_argument("--shapenet_val_hdf", help="path to processed shapenet val hdf file", default=None)
+    parser.add_argument("--imprint_train_hdf", help="path to processed imprint train hdf file", default=None)
+    parser.add_argument("--imprint_val_hdf", help="path to processed imprint val hdf file", default=None)
     parser.add_argument('--mode',
                         choices=[
                             # 1. collision mesh for .obj files
@@ -116,6 +121,14 @@ def parse_args():
                         help='number of environment processes',
                         type=int,
                         default=32)
+    parser.add_argument('--num_grasp_objects',
+                        help='number of grasp_objects to generate',
+                        type=int,
+                        default=200000)
+    parser.add_argument('--num_pretrain_dataset',
+                        help='number of grasp simuations to do for pretrain dataset',
+                        type=int,
+                        default=1000000)
 
     parser.add_argument('--gui', action='store_true',
                         default=False, help='Run headless or render')
@@ -171,21 +184,6 @@ def find_free_port():
         s.bind(('', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
-
-
-def tqdm_remote_get(task_handles, desc=None, max_results=None):
-    results = []
-    if max_results is None:
-        max_results = len(task_handles)
-    with tqdm(total=max_results, desc=desc, dynamic_ncols=True) as pbar:
-        pbar.update(0)
-        while len(task_handles) > 0:
-            finished_tasks, task_handles = ray.wait(task_handles)
-            results.extend(finished_tasks)
-            pbar.update(len(finished_tasks))
-            if len(results) > max_results:
-                break
-    return ray.get(results)
 
 
 def dicts_get(dicts, key):
@@ -247,8 +245,20 @@ def setup_pretrain_dataset_generation(
     if args.name[-1] != '/':
         args.name += '/'
     if args.objects is None:
-        print("Please path to shapenet root with --objects")
+        print("Please provide path to shapenet root with --objects")
         exit()
+    if args.split is None:
+        print("Specify which dataset split to use with --split")
+        exit()
+    split_map = {
+        "train": args.train,
+        "val": args.val,
+        "test": args.test
+    }
+    if split_map[args.split] is None:
+        print(f"Please specify category split file with --{split_map[args.split]} corresponding to args.split {args.split}")
+        exit()
+    category_file = split_map[args.split]
 
     if not exists(args.name):
         makedirs(args.name)
@@ -262,13 +272,18 @@ def setup_pretrain_dataset_generation(
             for _ in range(args.num_processes)],
         GraspObjectDataset(
             directory_path=args.objects,
-            batch_size=batch_size),
+            batch_size=batch_size,
+            category_file=category_file,
+        ),
         GraspDataset(
             directory_path=args.name,
-            batch_size=batch_size),
-        config['environment']['tsdf_voxel_size']
+            batch_size=batch_size,
+            suffix = args.split
+            ),
+        config['environment']['tsdf_voxel_size'],
+        args.num_pretrain_dataset,
     )
-
+    # hdf5 output path: Ummm... what to use here?
 
 def setup_imprint_generation(args, config):
     if args.objects is None:
@@ -326,11 +341,17 @@ def setup_pretrain_dataset(hdf5_paths, hyperparameters, dataset_class):
 
 
 def get_pretrain_hdf_paths(args):
-    train_hdf5_paths = [os.path.join(args.objects, "imprint-train.hdf5")]
-    val_hdf5_paths=[os.path.join(args.objects, "imprint-val.hdf5")]
+    if args.imprint_train_hdf is None or args.imprint_val_hdf is None:
+        print("Supply paths to imprint_train_hdf(imprint_val_hdf) with --imprint_train_hdf(--imprint_val_hdf)")
+        exit() 
+    train_hdf5_paths = [args.imprint_train_hdf]
+    val_hdf5_paths=[args.imprint_val_hdf]
     if args.mode == "pretrain":
-        train_hdf5_paths.append(os.path.join(args.objects, "shapenet-train.hdf5"))
-        val_hdf5_paths.append(os.path.join(args.objects, "shapenet-val.hdf5"))
+        if args.shapenet_train_hdf is None or args.shapenet_val_hdf is None:
+            print("Supply paths to shapenet_train_hdf(shapenet_val_hdf) with --shapenet_train_hdf(--shapenet_val_hdf)")
+            exit() 
+        train_hdf5_paths.append(args.shapenet_train_hdf)
+        val_hdf5_paths.append(args.shapenet_val_hdf)
     return train_hdf5_paths, val_hdf5_paths
 
 def setup_pretrain_datasets(args, hyperparameters):
@@ -394,14 +415,6 @@ def setup_pretrain(args, config):
     return net, hyperparameters,\
         get_train_loader, get_val_loader, Logger(args, config)
 
-def glob_category(root_dir, category_file, glob_pattern):
-    # - imprint dataset
-    paths = list()
-    with open(category_file, "r") as f:
-        for cat_name in f:
-            paths += glob(os.path.join(root_dir, cat_name.strip(), glob_pattern))
-    return paths
-
 def setup_train_vae(args, config):
     if args.name is None:
         print("Supply experiment name with --name")
@@ -412,11 +425,11 @@ def setup_train_vae(args, config):
     if args.objects is None:
         print("Supply root of shapenet with --objects")
         exit() 
-    if args.train is None or args.val is None:
-        print("Supply paths to train.txt(val.txt) with --train(--val)")
-        exit() 
     if args.shapenet_train_hdf is None or args.shapenet_val_hdf is None:
         print("Supply paths to shapenet_train_hdf(shapenet_val_hdf) with --shapenet_train_hdf(--shapenet_val_hdf)")
+        exit() 
+    if args.imprint_train_hdf is None or args.imprint_val_hdf is None:
+        print("Supply paths to imprint_train_hdf(imprint_val_hdf) with --imprint_train_hdf(--imprint_val_hdf)")
         exit() 
     hyperparameters = config['training']['hyperparameters']
     logger = Logger(args, config)
@@ -426,16 +439,10 @@ def setup_train_vae(args, config):
     val_vae_datasets = list()
 
     # imprint
-    train_vae_datasets.append(VAEDataset(
-        finger_tsdf_paths=glob_category(args.objects, args.train, "**/model_normalized_*_imprint_*_tsdf.npy"),
-        batch_size=hyperparameters['vae_batch_size']
-    ))
-    val_vae_datasets.append(VAEDataset(
-        finger_tsdf_paths=glob_category(args.objects, args.val, "**/model_normalized_*_imprint_*_tsdf.npy"),
-        batch_size=hyperparameters['vae_batch_size']
-    ))
+    train_vae_datasets.append(VAEDatasetHDF(dataset_path=args.imprint_train_hdf))
+    val_vae_datasets.append(VAEDatasetHDF(dataset_path=args.imprint_val_hdf))
     # shapenet
-    train_vae_datasets.append(VAEDatasetHDF(dataset_path=args.shapenet_train_hdf,))
+    train_vae_datasets.append(VAEDatasetHDF(dataset_path=args.shapenet_train_hdf))
     val_vae_datasets.append(VAEDatasetHDF(dataset_path=args.shapenet_val_hdf))
 
     # concatenate datasets
@@ -473,7 +480,7 @@ def setup(args, config):
         gui=args.gui)
         for _ in range(args.num_processes)]
     if args.mode == 'grasp_objects':
-        return envs, args.objects
+        return envs, args.objects, args.num_grasp_objects
 
     logger = Logger(args, config)
     hyperparameters = config['training']['hyperparameters']

@@ -433,9 +433,11 @@ def cotrain(envs: List[GraspSimulationEnv],
             # - fn performance on pretrain data
             since = time()
             dataset_name = "Pretrain"
+            len_dataset = len(pretrain_training_dataset)
             random_subset_indices = np.random.choice(
-                len(pretrain_training_dataset),
-                size=(6000), replace=False
+                len_dataset,
+                size=(min(len_dataset, 6000)),
+                replace=False
             )
             fn_pretrain_loader = get_loader(
                 dataset=Subset(pretrain_training_dataset, random_subset_indices),
@@ -789,12 +791,5 @@ def train_vae(net, hyperparams: dict, train_loader, val_loader,
                 step=epoch)
             print(f'\rValidation Loss:{np.mean(val_losses)}')
         checkpoint_path = '{}vae_{:03d}.pth'.format(logger.logdir, epoch)
-        save({
-            'stats': {
-                'update_steps': net.stats['update_steps'],
-                'epochs': epoch
-            },
-            'networks': net.get_network_state_dicts(),
-            'vae_optimizer': optimizer.state_dict()
-        }, checkpoint_path)
+        net.save(epoch, checkpoint_path)
         print(f'Saved checkpoint to {checkpoint_path}')
