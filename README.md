@@ -72,16 +72,38 @@ python main.py --mode grasp_objects
 ```
 3. Generate the shapenet-grasp-dataset:
 ```sh
-python main.py --name "data/shapenet_grasp_dataset/" --mode pretrain_dataset 
+# Training dataset:
+python main.py\
+    --name "data/shapenet_grasp_dataset/"\
+    --mode pretrain_dataset\
+    --split train\
+    --train data/train_categories.txt
+# Val dataset:
+python main.py\
+    --name "data/shapenet_grasp_dataset/"\
+    --mode pretrain_dataset\
+    --split val
+    --val data/val_categories.txt
 ```
 4. Generate the imprint-grasp-dataset:
 ```sh
 # - generate imprint fingers
 python main.py --mode imprint_baseline
 # - simulate grasping using (obj, imprint-left, imprint-right) and store grasping results
-python main.py --name "data/imprint_grasp_dataset/" --mode pretrain_imprint_dataset 
+#   (a) Training dataset
+python main.py\
+    --name "data/imprint_grasp_dataset/"\
+    --mode pretrain_imprint_dataset 
+    --split train\
+    --train data/train_categories.txt
+#   (b) Val dataset
+python main.py\
+    --name "data/imprint_grasp_dataset/"\
+    --mode pretrain_imprint_dataset 
+    --split val\
+    --val data/val_categories.txt
 ```
-
+Note that both modes `pretrain_dataset` and `pretrain_imprint_dataset` produces one million grasp-results by default. You can change this number by passing argument `--num_pretrain_dataset` with desired value.
 
 ### 3. Pretrain autoencoder
 ```sh
