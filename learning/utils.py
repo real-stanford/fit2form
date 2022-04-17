@@ -13,7 +13,6 @@ from torch.nn import Module
 from random import shuffle
 from pathlib import Path
 from enum import IntEnum
-from glob import glob
 
 from common_utils import tqdm_remote_get, glob_category
 
