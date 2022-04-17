@@ -37,14 +37,21 @@ python evaluate_generator.py --evaluate_config configs/evaluate.json --objects t
 
 ## Train a fit2form finger generator
 For training a fit2form finger generator, you will need to do the following:
-1. Generate dataset
-2. Download train-val-test split files
+1. Download train-val-test split files
+2. Generate dataset
 3. Pretrain an AutoEncoder
 4. Pretrain the Generator Network 
 5. Pretrain the Fitness Network
 6. Cotrain Generator and Fitness Network
 
-### 1. Generating Datsets
+### 1. Download train-val-test split files
+```sh
+wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/train_categories.txt
+wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/val_categories.txt
+wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/test_categories.txt
+```
+
+### 2. Generating Datsets
 1. Download the [ShapeNetCore dataset](https://www.shapenet.org) and place it in the `data/ShapeNetCore.v2` folder at root. Your data folder should have shapenet category directories like:
 ```sh
 data/
@@ -75,12 +82,6 @@ python main.py --mode imprint_baseline
 python main.py --name "data/imprint_grasp_dataset/" --mode pretrain_imprint_dataset 
 ```
 
-### 2. Download train-val-test split files
-```sh
-wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/train_categories.txt
-wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/val_categories.txt
-wget -P data/ https://fit2form.cs.columbia.edu/downloads/data/test_categories.txt
-```
 
 ### 3. Pretrain autoencoder
 ```sh
