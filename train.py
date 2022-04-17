@@ -433,9 +433,11 @@ def cotrain(envs: List[GraspSimulationEnv],
             # - fn performance on pretrain data
             since = time()
             dataset_name = "Pretrain"
+            len_dataset = len(pretrain_training_dataset)
             random_subset_indices = np.random.choice(
-                len(pretrain_training_dataset),
-                size=(6000), replace=False
+                len_dataset,
+                size=(min(len_dataset, 6000)),
+                replace=False
             )
             fn_pretrain_loader = get_loader(
                 dataset=Subset(pretrain_training_dataset, random_subset_indices),
@@ -633,7 +635,7 @@ def pretrain(
         print("=" * 25 + f"EPOCH {epoch}" + "=" * 25)
         # 1. Train
         net.train()
-        mean_fitness_loss, _ = \
+        mean_fitness_loss, _, _, _, _, _ = \
             optimize_network(
                 data_loader=get_train_loader(per_gpu_batch_size),
                 net=net,
@@ -643,7 +645,7 @@ def pretrain(
                 optimize_fitness_net=True,
                 optimize_generator_net=False,
                 get_generator_loss=False)
-        mean_fitness_loss = mean_fitness_loss.cpu().item() / num_gpus
+        mean_fitness_loss /= num_gpus
         logger.log(
             data={
                 'Train/Fitness_Loss': mean_fitness_loss,
@@ -653,7 +655,7 @@ def pretrain(
         # 2. Validate
         with no_grad():
             net.eval()
-            mean_fitness_loss, _ = \
+            mean_fitness_loss, _, _, _, _, _ = \
                 optimize_network(
                     data_loader=get_val_loader(per_gpu_batch_size),
                     net=net,
@@ -665,7 +667,7 @@ def pretrain(
                     optimize_generator_net=False,
                     get_generator_loss=False,
                 )
-        mean_fitness_loss = mean_fitness_loss.cpu().item() / num_gpus
+        mean_fitness_loss /= num_gpus
         print("Average validation | F: {:.04f} ".format(mean_fitness_loss))
         logger.log(
             data={
@@ -789,12 +791,5 @@ def train_vae(net, hyperparams: dict, train_loader, val_loader,
                 step=epoch)
             print(f'\rValidation Loss:{np.mean(val_losses)}')
         checkpoint_path = '{}vae_{:03d}.pth'.format(logger.logdir, epoch)
-        save({
-            'stats': {
-                'update_steps': net.stats['update_steps'],
-                'epochs': epoch
-            },
-            'networks': net.get_network_state_dicts(),
-            'vae_optimizer': optimizer.state_dict()
-        }, checkpoint_path)
+        net.save(epoch, checkpoint_path)
         print(f'Saved checkpoint to {checkpoint_path}')

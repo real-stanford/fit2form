@@ -92,7 +92,6 @@ if __name__ == '__main__':
     obj_dataset = ObjectDataset(
         directory_path=args.objects,
         batch_size=args.objects_bs,
-        grasp_object_file="graspobject_test_all.txt",
     )
     grippers_directory = args.name + '/'
     assert not os.path.exists(grippers_directory)

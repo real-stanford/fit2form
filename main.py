@@ -35,13 +35,11 @@ if __name__ == "__main__":
             desc='creating collision meshs')
         exit()
     elif args.mode == 'urdf':
-        object_paths = [str(path)
-                        for path in Path(args.objects).rglob('*.obj')]
-        object_paths = list(filter(lambda path: not path.endswith(
-            "collision.obj"), object_paths))
-        with Pool(48) as p:
-            rv = list(tqdm(p.imap(create_grasp_object_urdf, object_paths),
-                           total=len(object_paths)))
+        async_create_grasp_object_urdf = ray.remote(create_grasp_object_urdf)
+        object_paths = list(Path(args.objects).rglob('*normalized.obj'))
+        tqdm_remote_get(task_handles=[async_create_grasp_object_urdf.remote(
+            object_path) for object_path in object_paths],
+            desc="creating grasp object urdf")
         exit()
 
     config = load_config(args.config)

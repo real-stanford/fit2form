@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 import ray
 
 
-def create_grasp_objects(envs, root_dir, total=200000):
+def create_grasp_objects(envs, root_dir, total):
     """
     For each input URDF, create:
      - OBJ visual and collision mesh
@@ -42,7 +42,7 @@ def generate_pretrain_data(envs,
                            grasp_object_dataset,
                            grasp_dataset,
                            voxel_size,
-                           total=1000000):
+                           total):
     manual_seed(time())
     env_pool = Pool(envs)
     output_dir = f'{grasp_dataset.directory_path}grippers/'
@@ -146,7 +146,13 @@ def update_grasp_dataset(
     grasp_dataset.extend(grasp_data, log=False)
 
 
-def generate_pretrain_imprint_data(envs, grasp_object_dataset, grasp_dataset):
+def generate_pretrain_imprint_data(
+    envs,
+    grasp_object_dataset,
+    grasp_dataset,
+    voxel_size=None,  # Arguments for compatability with generate_pretrain_data
+    total=None,
+):
     env_pool = Pool(envs)
     output_dir = f"{grasp_dataset.directory_path}grippers_imprint/"
     if not exists(output_dir):
