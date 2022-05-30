@@ -3,10 +3,10 @@ from utils import (
     parse_args,
     setup,
     load_config,
-    tqdm_remote_get,
     setup_train_vae,
     seed_all
 )
+from common_utils import tqdm_remote_get
 from tqdm import tqdm
 from environment.meshUtils import (
     create_collision_mesh,
